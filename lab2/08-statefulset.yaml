@@ -1,0 +1,69 @@
+# StatefulSet da mesma app Node.js (imagem S2I lab2-ss neste namespace).
+# Nomes previsíveis: lab2-ss-0 (ordinal). Diferente do Deployment, não há hash de ReplicaSet.
+#
+# Pré-requisitos no namespace alvo (-n):
+#   - ImageStream/build lab2-ss (S2I) e oc set image-lookup lab2-ss
+#   - Service headless 07-service-headless.yaml já aplicado
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lab2-ss
+  labels:
+    app: lab2-ss
+    app.kubernetes.io/part-of: node-lab
+spec:
+  serviceName: lab2-ss-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab2-ss
+  template:
+    metadata:
+      labels:
+        app: lab2-ss
+        app.kubernetes.io/part-of: node-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: node
+          image: lab2-ss:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "8080"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
+            periodSeconds: 15

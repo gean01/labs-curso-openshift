@@ -1,0 +1,15 @@
+# PVC compartilhado pelos dois containers do Pod multi-container (montado em /dados).
+# Apagar o Pod NÃO apaga este claim — os arquivos em /dados permanecem.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lab2-dados-pvc
+  labels:
+    app: hello-multi-container
+    app.kubernetes.io/part-of: node-lab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

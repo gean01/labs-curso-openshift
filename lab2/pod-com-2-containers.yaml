@@ -1,0 +1,87 @@
+# Pod "solto" (sem Deployment/ReplicaSet): dois containers, rede e volume compartilhados.
+# - node-app escuta em 8080; python-app em 8081. No mesmo Pod, localhost alcança os dois.
+# - Ambos montam o PVC lab2-dados-pvc em /dados (criar antes: oc apply -f 09-pvc.yaml).
+# - oc delete pod derruba a aplicação até um novo oc apply — não há controller para recriar.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-criado-com-oc-apply-node-python-http
+  labels:
+    app: hello-multi-container
+    app.kubernetes.io/part-of: node-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    # Não fixe fsGroup: 0 — o SCC restricted-v2 do Sandbox rejeita.
+    # O OpenShift injeta fsGroup do range do namespace (sa.scc.supplemental-groups)
+    # para o PVC em /dados ficar gravável pelo UID aleatório.
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: node-app
+      image: registry.access.redhat.com/ubi9/nodejs-20:latest
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+      command:
+        - node
+        - -e
+        - |
+          const http = require('http');
+          http.createServer((req, res) => {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end('hello world from node\n');
+          }).listen(8080, '0.0.0.0');
+      volumeMounts:
+        - name: dados
+          mountPath: /dados
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "300m"
+          memory: "256Mi"
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+
+    - name: python-app
+      image: registry.access.redhat.com/ubi9/python-311:latest
+      ports:
+        - containerPort: 8081
+          protocol: TCP
+      command:
+        - python3
+        - -c
+        - |
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.send_header('Content-type', 'text/plain')
+                  self.end_headers()
+                  self.wfile.write(b'hello world from python\n')
+
+          HTTPServer(('0.0.0.0', 8081), Handler).serve_forever()
+      volumeMounts:
+        - name: dados
+          mountPath: /dados
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "300m"
+          memory: "256Mi"
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+
+  volumes:
+    - name: dados
+      persistentVolumeClaim:
+        claimName: lab2-dados-pvc

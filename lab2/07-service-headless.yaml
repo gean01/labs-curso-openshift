@@ -1,0 +1,22 @@
+# Headless Service do StatefulSet lab2-ss (namespace ns-para-statefulset).
+# clusterIP: None — o DNS devolve o IP do Pod, não um ClusterIP.
+# Com serviceName do StatefulSet igual a este nome, cada Pod ganha:
+#   lab2-ss-0.lab2-ss-svc.ns-para-statefulset.svc.cluster.local
+#
+# Aplique com -n ns-para-statefulset (ou o projeto do fallback Sandbox — ver guia).
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab2-ss-svc
+  labels:
+    app: lab2-ss
+    app.kubernetes.io/part-of: node-lab
+spec:
+  clusterIP: None
+  selector:
+    app: lab2-ss
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

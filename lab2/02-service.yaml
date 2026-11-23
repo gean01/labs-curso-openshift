@@ -1,33 +1,17 @@
-# Service: nome estável e IP interno para os Pods do Deployment.
-# O browser de fora do cluster não alcança este IP. Quem publica para fora é a Route (03).
-#
-# Ligações:
-# - metadata.name (lab-node-svc) é o valor de spec.to.name em 03-route.yaml.
-# - selector.app (lab-node) é o label dos Pods em 01-deployment.yaml (template.metadata.labels).
-# - ports[].name e ports[].targetPort (http) apontam para ports[].name do container.
-# - ports[].port (8080) é a porta deste Service. O DNS lab-node-svc:8080 cai aqui.
+# Service ClusterIP dos Pods do Deployment lab2-node.
+# A Route (03) cita metadata.name. O selector.app tem de bater com o template do Deployment.
 apiVersion: v1
 kind: Service
 metadata:
-  name: lab-node-svc
+  name: lab2-node-svc
   labels:
-    app: lab-node
-    # Mesmo grupo da Visão do Desenvolvedor usado no Deployment e na Route.
+    app: lab2-node
     app.kubernetes.io/part-of: node-lab
 spec:
-  # ClusterIP: um IP virtual só dentro do projeto. Não é um endereço do Sandbox na internet.
-  # O kube-proxy encaminha essa porta para os Pods que o selector encontrar.
   type: ClusterIP
   selector:
-    # Tem de coincidir com template.metadata.labels.app do Deployment.
-    # A Route não usa este selector. Ela cita o Service pelo nome lab-node-svc.
-    app: lab-node
+    app: lab2-node
   ports:
-    # name "http" é o nome que a Route usa em spec.port.targetPort.
-    # targetPort "http" é o nome da porta do container (01-deployment.yaml, ports[].name),
-    # que escuta em 8080. Usar o nome, e não só o número, amarra os três arquivos.
-    # Quando um campo de porta aceita uma string como "http", o sistema resolve 
-    # essa palavra buscando a porta que possui esse name no recurso de destino (deployment).
     - name: http
       port: 8080
       targetPort: http
