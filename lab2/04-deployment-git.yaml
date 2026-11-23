@@ -1,0 +1,200 @@
+# Este arquivo sobe o mesmo tipo de app do 01-deployment.yaml, com uma diferença:
+# o código Node não está escrito aqui. Ele vem do Git público
+# https://github.com/gean01/hello-world-nodejs.git (branch main).
+#
+# Um Deployment não clona Git. A cadeia é:
+#   BuildConfig clona o repositório e produz uma imagem
+#   ImageStream guarda essa imagem no projeto
+#   o trigger copia a imagem nova para o Deployment
+#   o Service seleciona os Pods desse Deployment
+#   a Route publica o Service no Sandbox
+#
+# O label app=lab-node-git é outro. O Service de 02-service.yaml procura app=lab-node
+# e não recebe estes Pods.
+#
+# Ordem dos documentos abaixo: ImageStream, BuildConfig, Deployment, Service, Route.
+---
+# ImageStream: registro de imagens dentro do projeto do aluno.
+# O BuildConfig grava aqui a tag lab-node-git:latest.
+# O Deployment não cita o Git; ele cita esta tag.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: lab-node-git
+  labels:
+    app: lab-node-git
+    # Mesmo grupo da Visão do Desenvolvedor dos arquivos 01, 02 e 03.
+    app.kubernetes.io/part-of: node-lab
+spec:
+  lookupPolicy:
+    # Permite que um Pod deste projeto use o nome curto lab-node-git:latest.
+    # Sem isso, a imagem precisaria do endereço completo do registry interno.
+    local: true
+---
+# BuildConfig: constrói a imagem a partir do Git.
+# spec.output.to.name (lab-node-git:latest) é a tag do ImageStream acima.
+# O Deployment, mais abaixo, espera essa mesma tag.
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: lab-node-git
+  labels:
+    app: lab-node-git
+    app.kubernetes.io/part-of: node-lab
+spec:
+  source:
+    type: Git
+    git:
+      # Repositório público. O package.json define "start": "node index.js".
+      # O S2I roda npm install e depois npm start.
+      uri: https://github.com/gean01/hello-world-nodejs.git
+      # Branch publicada. Se o código mudar de branch, esta linha muda junto.
+      ref: main
+  strategy:
+    type: Source
+    sourceStrategy:
+      from:
+        kind: ImageStreamTag
+        # Imagem construtora Node do cluster, não a imagem da aplicação.
+        # Se o Sandbox não tiver esta tag:
+        #   oc get istag -n openshift | grep nodejs
+        name: nodejs:20-ubi9
+        namespace: openshift
+  output:
+    to:
+      kind: ImageStreamTag
+      # Mesmo nome do ImageStream e a tag que o trigger do Deployment observa.
+      name: lab-node-git:latest
+  triggers:
+    # ConfigChange dispara um build assim que este arquivo é aplicado.
+    - type: ConfigChange
+---
+# Deployment: sobe o Pod com a imagem que o BuildConfig acabou de produzir.
+# metadata.annotations liga este Pod à tag lab-node-git:latest.
+# template.metadata.labels.app (lab-node-git) é o valor que o Service abaixo procura.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-node-git
+  labels:
+    app: lab-node-git
+    app.kubernetes.io/part-of: node-lab
+  annotations:
+    # Quando a tag lab-node-git:latest mudar, o OpenShift grava a imagem nova
+    # no campo image do container de nome "node", declarado mais abaixo.
+    # O nome entre aspas tem de ser igual a containers[].name.
+    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"lab-node-git:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"node\")].image","pause":"false"}]'
+spec:
+  # Uma réplica. O app do Git não devolve o nome do Pod, então duas cópias
+  # não acrescentam o que o primeiro Deployment já mostra.
+  replicas: 1
+  selector:
+    # Tem de ser igual a template.metadata.labels.
+    # O Service deste arquivo usa o mesmo app=lab-node-git.
+    matchLabels:
+      app: lab-node-git
+  template:
+    metadata:
+      labels:
+        app: lab-node-git
+        app.kubernetes.io/part-of: node-lab
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: node
+          # Valor inicial. O trigger acima troca este texto pelo endereço
+          # interno da tag lab-node-git:latest quando o build termina.
+          image: lab-node-git:latest
+          imagePullPolicy: Always
+          env:
+            - name: PORT
+              # index.js faz process.env.PORT || 3000.
+              # Sem esta variável o processo escuta 3000 e o Service, na 8080, não o alcança.
+              # 8080 é o mesmo número de containerPort e de ports[].port do Service.
+              value: "8080"
+          ports:
+            # name "http" é o elo com o Service e com a Route deste arquivo.
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            # GET / devolve "Hello World". Não há rota /health neste repositório.
+            # port: http é ports[].name deste container.
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
+            periodSeconds: 15
+---
+# Service: nome estável para os Pods com app=lab-node-git.
+# metadata.name (lab-node-git-svc) é o valor de spec.to.name da Route abaixo.
+# Não é o lab-node-svc de 02-service.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-node-git-svc
+  labels:
+    app: lab-node-git
+    app.kubernetes.io/part-of: node-lab
+spec:
+  type: ClusterIP
+  selector:
+    # Igual a template.metadata.labels.app do Deployment deste arquivo.
+    app: lab-node-git
+  ports:
+    # name "http" é spec.port.targetPort da Route.
+    # targetPort "http" é ports[].name do container, que escuta em 8080
+    # porque PORT=8080 foi definido no Deployment.
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+---
+# Route: publica lab-node-git-svc no router do Sandbox.
+# spec.to.name é metadata.name do Service acima.
+# spec.port.targetPort "http" é ports[].name desse Service.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: lab-node-git-route
+  labels:
+    app: lab-node-git
+    app.kubernetes.io/part-of: node-lab
+spec:
+  # Sem spec.host. O router preenche
+  # lab-node-git-route-<projeto>.apps.<cluster>.
+  to:
+    kind: Service
+    name: lab-node-git-svc
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

@@ -1,0 +1,119 @@
+# Deployment: mantém os Pods do app Node.js no ar.
+# Este arquivo não publica a aplicação. Quem faz isso é o Service (02) e a Route (03).
+#
+# Ligações com os outros arquivos:
+# - template.metadata.labels.app (lab-node) é o valor que o selector do Service procura.
+# - ports[].name (http) e ports[].containerPort (8080) são a porta que o Service
+#   usa em targetPort e que a Route referencia pelo mesmo nome "http".
+# - O processo node escuta essa porta. Se o número mudar aqui, muda no Service também.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-node
+  labels:
+    app: lab-node
+    # Agrupa este Deployment com o Service e a Route na Visão do Desenvolvedor.
+    # O mesmo valor aparece em 02-service.yaml e 03-route.yaml.
+    app.kubernetes.io/part-of: node-lab
+spec:
+  # Duas cópias do mesmo Pod. As duas recebem o label app=lab-node,
+  # então o Service envia tráfego para as duas. A página HTML mostra
+  # os.hostname(), que é o nome do Pod que atendeu o pedido.
+  replicas: 2
+  selector:
+    # O Deployment só gerencia Pods com estes labels.
+    # Tem de ser igual a template.metadata.labels, senão o apply é recusado.
+    # O Service, em 02-service.yaml, usa o mesmo app=lab-node para achar estes Pods.
+    matchLabels:
+      app: lab-node
+  template:
+    metadata:
+      labels:
+        app: lab-node
+        app.kubernetes.io/part-of: node-lab
+    spec:
+      # Contexto do Pod exigido pelo SCC restrito do Sandbox.
+      # Sem runAsUser fixo: o Sandbox escolhe um UID do projeto, e a imagem UBI aceita isso.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: node
+          # Imagem de runtime Node 22. O pull é anônimo (não exige secret da Red Hat).
+          # A tag 1 é a tag flutuante deste repositório; ele não publica "latest".
+          # O command abaixo substitui o entrypoint de build S2I desta imagem:
+          # aqui ela só executa o servidor deste lab.
+          image: registry.access.redhat.com/ubi9/nodejs-22-minimal:1
+          imagePullPolicy: IfNotPresent
+          command: ["node"]
+          args:
+            # -e avalia o script como programa. Esse script é a aplicação do lab.
+            - "-e"
+            - |
+              const http = require('http');
+              const os = require('os');
+              // PORT vem do env abaixo e é o mesmo número de containerPort.
+              const port = Number(process.env.PORT || 8080);
+              const server = http.createServer((req, res) => {
+                const path = (req.url || '/').split('?')[0];
+                // /health é o endereço das probes deste Deployment.
+                if (path === '/health') {
+                  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+                  res.end('ok');
+                  return;
+                }
+                // hostname é o nome do Pod. Com 2 réplicas, a mesma URL da Route
+                // pode responder com nomes diferentes: quem distribui é o Service.
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end('<h1>lab2 node</h1><p>pod ' + os.hostname() + '</p>');
+              });
+              // 0.0.0.0 escuta em todas as interfaces do container, não só em localhost.
+              // O Service só alcança o processo se ele escutar fora de 127.0.0.1.
+              server.listen(port, '0.0.0.0');
+          env:
+            - name: PORT
+              # Mesmo número de containerPort.name http. O script lê esta variável.
+              value: "8080"
+          ports:
+            # name "http" é o elo com o Service e com a Route.
+            # 02-service.yaml: targetPort: http
+            # 03-route.yaml:   port.targetPort: http
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # Mesmas restrições no container. O Sandbox recusa Pod que rode como root
+          # ou que possa ganhar privilégio.
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            # Pedido pequeno por causa da cota do Sandbox.
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            # Enquanto /health não responder 200, o Service não manda tráfego a este Pod.
+            # port: http é o nome declarado em ports[].name, não um número solto.
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            # Se /health deixar de responder, o Deployment recria este container.
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            timeoutSeconds: 2
+            periodSeconds: 15

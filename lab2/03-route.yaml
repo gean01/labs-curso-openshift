@@ -1,0 +1,39 @@
+# Route: expõe o Service na rede do Sandbox pelo router (HAProxy) do cluster.
+# O aluno abre https://<host gerado> no browser. Esse host não é escrito aqui.
+#
+# Ligações:
+# - spec.to.name (lab-node-svc) é metadata.name de 02-service.yaml.
+# - spec.port.targetPort (http) é ports[].name desse Service,
+#   que por sua vez aponta para a porta "http" do container em 01-deployment.yaml.
+# - A Route não tem selector de Pod. Quem escolhe os Pods é o selector do Service.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: lab-node-route
+  labels:
+    app: lab-node
+    # Mesmo grupo da Visão do Desenvolvedor usado no Deployment e no Service.
+    app.kubernetes.io/part-of: node-lab
+spec:
+  # Sem spec.host de propósito. No Sandbox o router preenche o host no formato
+  # <nome-da-route>-<projeto>.apps.<cluster>, por exemplo
+  # lab-node-route-meu-projeto.apps.sandbox.openshiftapps.com.
+  # Fixar o host aqui falha: o aluno não controla o domínio *.apps do cluster.
+  to:
+    kind: Service
+    # Nome exato do Service. Se o Service for renomeado, esta linha muda junto.
+    name: lab-node-svc
+  port:
+    # "http" é ports[].name em 02-service.yaml, não a porta 8080 escrita de novo.
+    # O Service é que traduz "http" para o containerPort 8080 do Deployment.
+    # Quando um campo de porta aceita uma string como "http", o sistema resolve 
+    # essa palavra buscando a porta que possui esse name no recurso de destino (Service).
+    # Route só possui targetPort, não port.
+    targetPort: http
+  tls:
+    # edge: o router termina o HTTPS e fala HTTP com o Service, na porta 8080.
+    # O processo node não tem certificado. O certificado é o do router do Sandbox.
+    termination: edge
+    # Pedido HTTP na Route é redirecionado para HTTPS.
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
