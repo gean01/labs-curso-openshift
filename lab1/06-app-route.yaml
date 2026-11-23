@@ -1,0 +1,21 @@
+# Route pública da aplicação Node.js. Aplique depois de oc new-app / oc expose
+# (oc expose svc/lab-app cria um objeto equivalente). Este manifesto deixa a
+# exposição declarativa e agrupa a app no mapa da Visão do Desenvolvedor.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: lab-app
+  labels:
+    app: lab-app
+    app.kubernetes.io/part-of: pg-lab
+spec:
+  to:
+    kind: Service
+    name: lab-app
+    weight: 100
+  port:
+    targetPort: 8080-tcp
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
