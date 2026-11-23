@@ -1,0 +1,128 @@
+# Quatro Services para o mesmo PostgreSQL, com papéis diferentes.
+#
+# Dois são ClusterIP (têm um IP virtual estável e fazem balanceamento):
+#   lab-pg-svc-primary  -> Pods com role=primary
+#   lab-pg-svc-replica  -> Pods com role=replica
+# A réplica (04-statefulset.yaml) usa o NOME lab-pg-svc-primary na variável
+# POSTGRESQL_MASTER_IP. O DNS do cluster resolve esse nome para o ClusterIP,
+# e o Service encaminha para o Pod primary que estiver Ready.
+#
+# Dois são headless (clusterIP: None, sem balanceamento):
+#   lab-pg-svc-headless-primary
+#   lab-pg-svc-headless-replica
+# O StatefulSet aponta para eles em spec.serviceName. É esse Service que
+# publica o DNS estável de cada Pod:
+#   <nome-do-pod>.<nome-do-headless>
+#   lab-pg-ss-primary-0.lab-pg-svc-headless-primary
+#   lab-pg-ss-replica-0.lab-pg-svc-headless-replica
+# Consultar o headless devolve o IP do Pod, não um IP de Service.
+#
+# O que liga Service e Pod é o selector, não o nome do Service.
+# O selector abaixo só encontra Pods cujo template.metadata.labels
+# (no StatefulSet) tenha os mesmos pares app + role.
+# O label app.kubernetes.io/part-of NÃO entra no selector: ele só agrupa
+# os objetos no mapa da Visão do Desenvolvedor.
+#
+# Comentários com # são ignorados pelo oc apply e não ficam no objeto do cluster.
+
+# ---------------------------------------------------------------------------
+# ClusterIP do primary. Ponto de entrada estável para quem fala com o master
+# (a réplica, e qualquer cliente que queira escrever).
+# ---------------------------------------------------------------------------
+apiVersion: v1 # grupo core; Service vive em v1, igual Secret e ConfigMap
+kind: Service
+metadata:
+  name: lab-pg-svc-primary # nome DNS dentro do namespace; é o valor de POSTGRESQL_MASTER_IP na réplica
+  labels:
+    app: lab-pg # identifica o lab; não é o selector (o selector olha os labels do Pod)
+    app.kubernetes.io/part-of: pg-lab # usada para construir o mapa visual na Visão do Desenvolvedor
+spec:
+  type: ClusterIP # IP virtual só dentro do cluster; o padrão quando type é omitido
+  ports:
+    - name: postgres # mesmo nome de containerPort no StatefulSet; identifica a porta, não escolhe o Pod
+      port: 5432 # porta em que o Service escuta (clientes conectam aqui)
+      targetPort: 5432 # porta do container para onde o tráfego é enviado; casa com containerPort
+  selector:
+    app: lab-pg # tem de existir em template.metadata.labels do StatefulSet primary
+    role: primary # separa este Service do de réplica; sem este par, o tráfego iria para os dois
+
+---
+# ---------------------------------------------------------------------------
+# ClusterIP da réplica. Mesma ideia do primary, mas o selector exige
+# role=replica. Com replicas: 1 há um único Pod atrás deste IP; se o
+# número de réplicas subir, o Service passa a balancear entre elas.
+# Este nome NÃO é usado pelo primary. Quem quiser leitura na réplica
+# conecta em lab-pg-svc-replica:5432.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-pg-svc-replica # DNS estável das réplicas; não aponta para o primary
+  labels:
+    app: lab-pg
+    app.kubernetes.io/part-of: pg-lab # usada para construir o mapa visual na Visão do Desenvolvedor
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres # alinha com containerPort.name do StatefulSet da réplica
+      port: 5432 # porta publicada pelo Service
+      targetPort: 5432 # porta real do processo PostgreSQL no container
+  selector:
+    app: lab-pg # mesmo app do primary: os dois conjuntos compartilham o lab
+    role: replica # só Pods do StatefulSet lab-pg-ss-replica; o primary tem role=primary
+
+---
+# ---------------------------------------------------------------------------
+# Headless do primary. clusterIP: None desliga o IP virtual e o balanceamento.
+# Uma consulta DNS a este Service devolve o IP do Pod (ou a lista de IPs,
+# se houver mais de um). O StatefulSet lab-pg-ss-primary declara
+# serviceName: lab-pg-svc-headless-primary — os dois nomes têm de ser iguais.
+# É daqui que sai o FQDN estável do Pod primary:
+#   lab-pg-ss-primary-0.lab-pg-svc-headless-primary
+# O Service headless precisa existir antes (ou junto) do StatefulSet.
+# O selector continua igual ao ClusterIP do primary: os dois Services
+# enxergam o mesmo Pod; o que muda é o tipo de endereço que o DNS entrega.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-pg-svc-headless-primary # tem de ser idêntico a spec.serviceName do StatefulSet primary
+  labels:
+    app: lab-pg
+    app.kubernetes.io/part-of: pg-lab # usada para construir o mapa visual na Visão do Desenvolvedor
+spec:
+  clusterIP: None # isto torna o Service headless; não há ClusterIP para balancear
+  ports:
+    - name: postgres # a porta nomeada entra no registro DNS SRV do headless
+      port: 5432 # porta anunciada no DNS; clientes do Pod usam esta porta
+      targetPort: 5432 # encaminha para containerPort 5432 do Pod primary
+  selector:
+    app: lab-pg # casa com template.metadata.labels do StatefulSet primary
+    role: primary # restringe o DNS deste headless aos Pods primary
+
+---
+# ---------------------------------------------------------------------------
+# Headless da réplica. Mesmo mecanismo do headless do primary.
+# spec.serviceName do StatefulSet lab-pg-ss-replica aponta para este nome.
+# O comando do lab que prova a resolução usa exatamente este DNS:
+#   lab-pg-ss-replica-0.lab-pg-svc-headless-replica
+# Esse nome continua válido depois de um delete do Pod: o ordinal 0 volta
+# com o mesmo hostname e remonta o mesmo PVC. O IP do Pod pode mudar;
+# o nome não.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-pg-svc-headless-replica # tem de ser idêntico a spec.serviceName do StatefulSet replica
+  labels:
+    app: lab-pg
+    app.kubernetes.io/part-of: pg-lab # usada para construir o mapa visual na Visão do Desenvolvedor
+spec:
+  clusterIP: None # headless: o DNS lista os IPs dos Pods com role=replica
+  ports:
+    - name: postgres # nome da porta, alinhado ao containerPort da réplica
+      port: 5432 # porta publicada; o teste do lab abre /dev/tcp neste host na 5432
+      targetPort: 5432 # porta do container da réplica
+  selector:
+    app: lab-pg # mesmo contrato de labels dos outros Services deste arquivo
+    role: replica # só os Pods do StatefulSet lab-pg-ss-replica

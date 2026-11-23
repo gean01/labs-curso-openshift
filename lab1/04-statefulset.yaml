@@ -1,0 +1,212 @@
+# Dois StatefulSets: um primary e uma réplica. Não é um único conjunto
+# com vários Pods iguais. Cada um tem identidade, disco e papel próprios.
+#
+# Por que StatefulSet e não Deployment: o PostgreSQL precisa de nome estável
+# e de disco que sobreviva ao Pod. O ordinal (o -0 no final) não é cosmético.
+#   Pod  lab-pg-ss-primary-0  -> PVC pgdata-lab-pg-ss-primary-0
+#   Pod  lab-pg-ss-replica-0  -> PVC pgdata-lab-pg-ss-replica-0
+# Apagar o Pod recria o mesmo nome e remonta o mesmo PVC. Apagar o PVC
+# apaga os dados.
+#
+# O que amarra este arquivo ao 03-service.yaml:
+#   spec.serviceName
+#     tem de ser o nome do Service headless daquele papel.
+#   template.metadata.labels (app + role)
+#     tem de ser igual a spec.selector.matchLabels deste StatefulSet
+#     e igual ao spec.selector do Service que deve achar este Pod.
+#     Se o label do template divergir do matchLabels, o apply falha.
+#     Se divergir do selector do Service, o Service fica sem endpoints.
+#
+# O que amarra aos outros manifests:
+#   envFrom.secretRef    -> metadata.name de 01-secret.yaml    (lab-pg-secret)
+#   envFrom.configMapRef -> metadata.name de 02-configmap.yaml (lab-pg-configmap)
+# Cada chave do Secret e do ConfigMap vira uma variável de ambiente
+# com o mesmo nome (POSTGRESQL_USER, POSTGRESQL_MAX_CONNECTIONS, ...).
+# A imagem Red Hat lê essas variáveis na primeira subida.
+#
+# Primary e réplica usam a mesma imagem. O que muda o papel é args:
+#   primary: run-postgresql-master
+#   replica: run-postgresql-slave
+# A réplica ainda declara POSTGRESQL_MASTER_IP=lab-pg-svc-primary,
+# o ClusterIP do 03-service.yaml, para saber onde está o master.
+# Esse valor é só da réplica; por isso não está no ConfigMap compartilhado.
+#
+# Ordem prática de apply: Secret e ConfigMap, depois os Services, depois
+# este arquivo. O headless precisa existir para o serviceName resolver.
+# Comentários com # são ignorados pelo oc apply.
+
+# ---------------------------------------------------------------------------
+# Primary. Um Pod (replicas: 1), disco próprio, script de master.
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1 # StatefulSet pertence ao grupo apps, não ao core v1
+kind: StatefulSet
+metadata:
+  name: lab-pg-ss-primary # vira o prefixo do Pod: lab-pg-ss-primary-0
+  labels:
+    app: lab-pg # label do OBJETO StatefulSet; o Service não seleciona por aqui
+    app.kubernetes.io/part-of: pg-lab # mapa da Visão do Desenvolvedor; fora do selector
+spec:
+  serviceName: lab-pg-svc-headless-primary # nome do headless em 03-service.yaml; define o DNS do Pod
+  replicas: 1 # um primary; o ordinal começa em 0 e o Pod se chama ...-primary-0
+  selector:
+    matchLabels:
+      app: lab-pg # tem de ser cópia exata dos labels do template abaixo
+      role: primary # imutável depois de criado; mudar exige apagar o StatefulSet
+  template:
+    metadata:
+      labels:
+        app: lab-pg # o selector dos Services primary (ClusterIP e headless) procura este par
+        role: primary # sem este label o Pod nasce, mas nenhum Service deste lab o encontra
+    spec:
+      containers:
+        - name: postgresql # nome do container dentro do Pod; usado em oc exec -c se houver mais de um
+          image: registry.redhat.io/rhel9/postgresql-13:latest # imagem da Red Hat; os scripts run-postgresql-* vêm dela
+          args:
+            - run-postgresql-master # entrypoint da imagem que inicializa este Pod como primary
+          ports:
+            - containerPort: 5432 # porta em que o postgres escuta; é o targetPort dos Services
+              name: postgres # mesmo nome da porta nos quatro Services (campo ports.name)
+          envFrom:
+            - secretRef:
+                name: lab-pg-secret # 01-secret.yaml: usuário, senha, banco e credencial de replicação
+            - configMapRef:
+                name: lab-pg-configmap # 02-configmap.yaml: max_connections, shared_buffers, effective_cache_size
+          resources:
+            requests:
+              cpu: 250m # 250 milicores reservados no scheduling; o nó precisa ter isso livre
+              memory: 512Mi # memória garantida; o scheduler usa este valor para escolher o nó
+            limits:
+              cpu: 500m # teto de CPU; acima disso o container é throttled, não morto
+              memory: 1Gi # teto de memória; estourar o limit mata o container (OOMKilled)
+          readinessProbe:
+            # Enquanto este check falha, o Pod fica de fora dos endpoints do Service.
+            # O ClusterIP lab-pg-svc-primary só encaminha tráfego quando o Pod está Ready.
+            exec:
+              command:
+                - /usr/libexec/check-container # health check que já vem na imagem Red Hat
+            initialDelaySeconds: 15 # espera 15s após o start antes da primeira tentativa
+            timeoutSeconds: 5 # cada execução do comando pode levar no máximo 5s
+            periodSeconds: 10 # repete o check a cada 10s
+          livenessProbe:
+            # Se este check falha, o kubelet mata o container e sobe outro.
+            # O PVC permanece: o processo novo reabre o mesmo PGDATA.
+            # O delay é bem maior que o da readiness de propósito: um postgres
+            # ainda iniciando não deve ser tratado como processo morto.
+            exec:
+              command:
+                - /usr/libexec/check-container # mesmo binário da readiness; o critério de tempo é que muda
+            initialDelaySeconds: 120 # 2 minutos de folga para a primeira inicialização do banco
+            timeoutSeconds: 5
+            periodSeconds: 15 # intervalo maior que o da readiness; liveness é o último recurso
+          volumeMounts:
+            - name: pgdata # tem de ser igual a volumeClaimTemplates.metadata.name, aqui embaixo
+              mountPath: /var/lib/pgsql/data # PGDATA desta imagem; é aqui que ficam os arquivos do banco
+  volumeClaimTemplates:
+    # O StatefulSet cria um PVC por Pod, com nome previsível:
+    #   <nome-deste-template>-<nome-do-statefulset>-<ordinal>
+    #   pgdata-lab-pg-ss-primary-0
+    # O claim não é apagado quando o Pod ou o StatefulSet é apagado.
+    # O usuário de replicação (repl_user, vindo do Secret) só é criado na
+    # primeira inicialização deste PGDATA. Se o volume já existia de um
+    # apply anterior, mudar o Secret não recria o role: é preciso apagar o PVC.
+    - metadata:
+        name: pgdata # casa com volumeMounts.name; não é o nome final do PVC
+        labels:
+          app: lab-pg # label do PVC, útil em oc get pvc -l app=lab-pg
+          role: primary # distingue o disco do primary do disco da réplica
+      spec:
+        accessModes:
+          - ReadWriteOnce # um nó por vez monta o volume; combina com a identidade ordinal do Pod
+        resources:
+          requests:
+            storage: 1Gi # tamanho pedido ao StorageClass default do cluster
+---
+# ---------------------------------------------------------------------------
+# Réplica. Mesma imagem e o mesmo contrato de labels, probes, recursos e
+# disco. Três diferenças em relação ao primary:
+#   1. serviceName aponta para o headless da réplica.
+#   2. args chama run-postgresql-slave.
+#   3. POSTGRESQL_MASTER_IP aponta para o ClusterIP lab-pg-svc-primary.
+# O script da imagem usa essa variável, mais POSTGRESQL_MASTER_USER e
+# POSTGRESQL_MASTER_PASSWORD (estas duas vêm do Secret via envFrom),
+# para abrir a replicação streaming contra o primary.
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lab-pg-ss-replica # prefixo do Pod: lab-pg-ss-replica-0
+  labels:
+    app: lab-pg # label do objeto; o selector dos Services olha o template, não isto
+    app.kubernetes.io/part-of: pg-lab # mapa da Visão do Desenvolvedor
+spec:
+  serviceName: lab-pg-svc-headless-replica # headless em 03-service.yaml; DNS: lab-pg-ss-replica-0.lab-pg-svc-headless-replica
+  replicas: 1 # uma réplica neste lab; subir este número cria ...-replica-1, ...-replica-2, cada um com PVC próprio
+  selector:
+    matchLabels:
+      app: lab-pg # cópia obrigatória dos labels do template
+      role: replica # impede este StatefulSet de adotar o Pod do primary
+  template:
+    metadata:
+      labels:
+        app: lab-pg # selector de lab-pg-svc-replica e do headless da réplica
+        role: replica # é este valor que deixa o Pod de fora dos Services do primary
+    spec:
+      containers:
+        - name: postgresql
+          image: registry.redhat.io/rhel9/postgresql-13:latest # a mesma imagem do primary
+          args:
+            - run-postgresql-slave # script da imagem que configura este Pod como standby
+          env:
+            - name: POSTGRESQL_MASTER_IP # lida pelo script da réplica; não existe no primary
+              value: lab-pg-svc-primary # nome do ClusterIP em 03-service.yaml, não o headless e não o IP do Pod
+          ports:
+            - containerPort: 5432 # mesma porta do primary; os Services da réplica usam targetPort 5432
+              name: postgres # alinha com ports.name dos Services
+          envFrom:
+            - secretRef:
+                name: lab-pg-secret # mesma credencial do primary, inclusive o par MASTER_USER / MASTER_PASSWORD
+            - configMapRef:
+                name: lab-pg-configmap # mesmo tuning do primary
+          resources:
+            requests:
+              cpu: 250m # reserva usada pelo scheduler
+              memory: 512Mi
+            limits:
+              cpu: 500m # teto de CPU (throttle)
+              memory: 1Gi # teto de memória (OOMKilled se passar)
+          readinessProbe:
+            # O Service lab-pg-svc-replica só inclui este Pod quando o check passa.
+            # Durante o base backup inicial a réplica ainda não está pronta para leitura.
+            exec:
+              command:
+                - /usr/libexec/check-container
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            # Reinicia o container da réplica se o processo morrer.
+            # O PVC pgdata-lab-pg-ss-replica-0 continua; não é preciso refazer
+            # o backup inicial enquanto esse volume existir e for compatível.
+            exec:
+              command:
+                - /usr/libexec/check-container
+            initialDelaySeconds: 120 # folga para o standby terminar de conectar no primary
+            timeoutSeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            - name: pgdata # referencia o volumeClaimTemplate de baixo; disco próprio, não o do primary
+              mountPath: /var/lib/pgsql/data # PGDATA da réplica; cópia física, separada do primary
+  volumeClaimTemplates:
+    # PVC resultante: pgdata-lab-pg-ss-replica-0
+    # Independente de pgdata-lab-pg-ss-primary-0. Apagar um não apaga o outro.
+    - metadata:
+        name: pgdata # mesmo nome lógico do primary; o nome do StatefulSet é que diferencia o PVC
+        labels:
+          app: lab-pg
+          role: replica # oc get pvc -l role=replica lista só o disco da réplica
+      spec:
+        accessModes:
+          - ReadWriteOnce # o Pod da réplica monta este volume sozinho, em um nó
+        resources:
+          requests:
+            storage: 1Gi # mesmo tamanho do primary; o conteúdo é a cópia replicada, não um volume compartilhado
