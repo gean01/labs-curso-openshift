@@ -1,0 +1,7 @@
+.venv/
+vendor/
+**/__pycache__/
+lab1/validate-lab.log
+lab1/.oc-test-out.txt
+node_modules/
+.DS_Store
