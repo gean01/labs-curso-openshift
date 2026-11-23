@@ -5,3 +5,7 @@ lab1/validate-lab.log
 lab1/.oc-test-out.txt
 node_modules/
 .DS_Store
+lab1/generate_guia.py
+lab1/validate-lab.sh
+lab1/05-deploy-app.sh
+lab2/todo.txt
