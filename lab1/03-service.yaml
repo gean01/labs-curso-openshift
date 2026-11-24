@@ -4,7 +4,7 @@
 #   lab-pg-svc-primary  -> Pods com role=primary
 #   lab-pg-svc-replica  -> Pods com role=replica
 # A réplica (04-statefulset.yaml) usa o NOME lab-pg-svc-primary na variável
-# POSTGRESQL_MASTER_IP. O DNS do cluster resolve esse nome para o ClusterIP,
+# POSTGRESQL_MASTER_DNS. O DNS do cluster resolve esse nome para o ClusterIP,
 # e o Service encaminha para o Pod primary que estiver Ready.
 #
 # Dois são headless (clusterIP: None, sem balanceamento):
@@ -32,7 +32,7 @@
 apiVersion: v1 # grupo core; Service vive em v1, igual Secret e ConfigMap
 kind: Service
 metadata:
-  name: lab-pg-svc-primary # nome DNS dentro do namespace; é o valor de POSTGRESQL_MASTER_IP na réplica
+  name: lab-pg-svc-primary # nome DNS dentro do namespace; é o valor de POSTGRESQL_MASTER_DNS na réplica
   labels:
     app: lab-pg # identifica o lab; não é o selector (o selector olha os labels do Pod)
     app.kubernetes.io/part-of: pg-lab # usada para construir o mapa visual na Visão do Desenvolvedor

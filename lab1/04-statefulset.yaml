@@ -27,7 +27,7 @@
 # Primary e réplica usam a mesma imagem. O que muda o papel é args:
 #   primary: run-postgresql-master
 #   replica: run-postgresql-slave
-# A réplica ainda declara POSTGRESQL_MASTER_IP=lab-pg-svc-primary,
+# A réplica ainda declara POSTGRESQL_MASTER_DNS=lab-pg-svc-primary,
 # o ClusterIP do 03-service.yaml, para saber onde está o master.
 # Esse valor é só da réplica; por isso não está no ConfigMap compartilhado.
 #
@@ -126,7 +126,7 @@ spec:
 # disco. Três diferenças em relação ao primary:
 #   1. serviceName aponta para o headless da réplica.
 #   2. args chama run-postgresql-slave.
-#   3. POSTGRESQL_MASTER_IP aponta para o ClusterIP lab-pg-svc-primary.
+#   3. POSTGRESQL_MASTER_DNS aponta para o ClusterIP lab-pg-svc-primary.
 # O script da imagem usa essa variável, mais POSTGRESQL_MASTER_USER e
 # POSTGRESQL_MASTER_PASSWORD (estas duas vêm do Secret via envFrom),
 # para abrir a replicação streaming contra o primary.
@@ -157,7 +157,7 @@ spec:
           args:
             - run-postgresql-slave # script da imagem que configura este Pod como standby
           env:
-            - name: POSTGRESQL_MASTER_IP # lida pelo script da réplica; não existe no primary
+            - name: POSTGRESQL_MASTER_DNS # lida pelo script da réplica; não existe no primary
               value: lab-pg-svc-primary # nome do ClusterIP em 03-service.yaml, não o headless e não o IP do Pod
           ports:
             - containerPort: 5432 # mesma porta do primary; os Services da réplica usam targetPort 5432
