@@ -81,7 +81,7 @@ oc get configmaps
 ```
 
 ```bash
-oc get nodes 2>/dev/null || echo 'No Sandbox a listagem de nodes é restrita'
+oc get nodes
 ```
 
 <mark>**Q1:** Quando executamos `oc get pods`, de onde o cluster obtém essa informação (qual componente armazena o estado desejado/observado)?</mark>
