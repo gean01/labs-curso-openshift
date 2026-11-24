@@ -125,7 +125,7 @@ oc extract secret/lab-pg-secret --to=-
 
 Observe que `oc extract` mostra os valores decodificados. Em produção, o acesso a Secrets deve ser controlado.
 
-<mark>**Q2:** Qual o valor da chave `POSTGRESQL_MASTER_PASSWORD` codificada em base64 no secret?</mark>
+<mark>**Q2:** Qual o valor da chave `POSTGRESQL_MASTER_PASSWORD` codificada em base64 (embaralhada) no secret?</mark>
 
 <mark>**Q3:** O campo `stringData` no manifesto do Secret evita que você precise escrever base64 manualmente. O que o cluster faz com esses valores ao persistir o objeto no etcd?</mark>
 
