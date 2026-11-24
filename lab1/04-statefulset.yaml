@@ -39,39 +39,28 @@
 # Primary. Um Pod (replicas: 1), disco próprio, script de master.
 # ---------------------------------------------------------------------------
 apiVersion: apps/v1 # StatefulSet pertence ao grupo apps, não ao core v1
-kind: StatefulSet
-metadata:
-  name: lab-pg-ss-primary # vira o prefixo do Pod: lab-pg-ss-primary-0
-  labels:
-    app: lab-pg # label do OBJETO StatefulSet; o Service não seleciona por aqui
-    app.kubernetes.io/part-of: pg-lab # mapa da Visão do Desenvolvedor; fora do selector
-spec:
-  serviceName: lab-pg-svc-headless-primary # nome do headless em 03-service.yaml; define o DNS do Pod
+kind: StatefulSet # Define o tipo de objeto que será criado
+metadata: # metadados do objeto
+  name: lab-pg-ss-primary # vira o prefixo dso Pods: lab-pg-ss-primary-0, lab-pg-ss-primary-1, etc.
+  labels: # labels são pares chave-valor que podem ser usados para selecionar o objeto
+    app: lab-pg # label do OBJETO StatefulSet em si;
+    app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor, na hora de visualizar os objetos e apagar tudo de uma vez.
+spec: # Especificação do objeto, com os campos que definem o comportamento do StatefulSet.
+  serviceName: lab-pg-svc-headless-primary # nome do headless service em 03-service.yaml; define o DNS do Pod
   replicas: 1 # Apenas 1 instancia pois é o primary. Mudar para 2 criaria 2 bancos independentes
-  selector:
-    matchLabels:
-      app: lab-pg # tem de ser cópia exata dos labels do template abaixo
-      role: primary # imutável depois de criado; mudar exige apagar o StatefulSet
+  selector: # Seleciona os Pods que serão gerenciados pelo StatefulSet.
+    matchLabels: # Apenas pods com os labels especificados abaixo serão selecionados.
+      app: lab-pg # chave e valor do label. Nome escolhido arbitrariamente desde que siga regras do formato yaml.
+      role: primary # mais um label com nome arbitrário (embora sugestivo para o papel).
   template:
-    metadata:
-      labels:
-        app: lab-pg # o selector dos Services primary (ClusterIP e headless) procura este par
-        role: primary # sem este label o Pod nasce, mas nenhum Service deste lab o encontra
-    spec:
-      containers:
-        - name: postgresql # nome do container dentro do Pod; usado em oc exec -c se houver mais de um
+    metadata: # metadados do template, que será usado para criar os Pods.
+      labels: # labels que serão adicionados aos Pods criados.
+        app: lab-pg # label útil para o selector dos Services encontrar os pods criados aqui
+        role: primary # label para o selector dos Services encontrar os pods criados aqui
+    spec: # Especificação do template, com os campos que definem o comportamento dos Pods.
+      containers: # Lista de containers que serão executados nos Pods.
+        - name: postgresql # nome do container dentro do Pod.
           image: registry.redhat.io/rhel9/postgresql-13:latest # imagem da Red Hat; os scripts run-postgresql-* vêm dela
-          args:
-            - run-postgresql-master # entrypoint da imagem que inicializa este Pod como primary
-          ports:
-            - containerPort: 5432 # porta em que o postgres escuta; é o targetPort dos Services
-              name: postgres # mesmo nome da porta nos quatro Services (campo ports.name)
-          envFrom:
-            - secretRef:
-                name: lab-pg-secret # 01-secret.yaml: usuário, senha, banco e credencial de replicação
-            - configMapRef:
-                name: lab-pg-configmap # 02-configmap.yaml: max_connections, shared_buffers, effective_cache_size
-          resources:
             requests:
               cpu: 250m # 250 milicores reservados no scheduling; o nó precisa ter isso livre
               memory: 512Mi # memória garantida; o scheduler usa este valor para escolher o nó
