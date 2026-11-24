@@ -3,7 +3,7 @@
 # Dois são ClusterIP (têm um IP virtual estável e fazem balanceamento):
 #   lab-pg-svc-primary  -> Pods com role=primary
 #   lab-pg-svc-replica  -> Pods com role=replica
-# A réplica (04-statefulset.yaml) usa o NOME lab-pg-svc-primary na variável
+# A réplica (arquivo 04-statefulset.yaml) usa o NOME lab-pg-svc-primary na variável
 # POSTGRESQL_MASTER_IP. O DNS do cluster resolve esse nome para o ClusterIP,
 # e o Service encaminha para o Pod primary que estiver Ready.
 #
@@ -12,7 +12,7 @@
 #   lab-pg-svc-headless-replica
 # O StatefulSet aponta para eles em spec.serviceName. É esse Service que
 # publica o DNS estável de cada Pod:
-#   <nome-do-pod>.<nome-do-headless>
+#   <nome-do-pod>.<nome-do-headless-service>
 #   lab-pg-ss-primary-0.lab-pg-svc-headless-primary
 #   lab-pg-ss-replica-0.lab-pg-svc-headless-replica
 # Consultar o headless devolve o IP do Pod, não um IP de Service.
