@@ -25,7 +25,7 @@ git clone https://github.com/gean01/labs-curso-openshift.git
 cd labs-curso-openshift
 ```
 
-Importante: caso não tenha o programa git para clonar o repositório, baixe e descompacte o zip em https://github.com/gean01/labs-curso-openshift/archive/refs/heads/main.zip
+Importante: caso não tenha o programa git para clonar o repositório (comando anterior falha), baixe e descompacte o zip em https://github.com/gean01/labs-curso-openshift/archive/refs/heads/main.zip
 
 3. Login no cluster
 
@@ -336,14 +336,15 @@ Nota: apagar o Pod **não** apaga o PVC (apagar este, sim, destruiria os dados).
 
 ## Parte 6 — Limpeza de tudo que foi criado (OPCIONAL)
 
-Atenção. Execute os comandos a seguir apenas se precisar recomeçar o LAB
+Atenção. Execute os comandos a seguir apenas se precisar recomeçar o LAB.
+
 Apague Pods, Deployments, ReplicaSets, StatefulSets, Services, Routes:
 
 ```bash
 oc delete all --all
 ```
 
-Apague os PVCs:
+Apague os PVCs (volumes solicitados pelos statefulsets):
 
 ```bash
 oc delete pvc --all

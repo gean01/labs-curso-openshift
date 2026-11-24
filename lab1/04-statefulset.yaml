@@ -114,7 +114,7 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
     # primeira inicialização deste PGDATA. Se o volume já existia de um
     # apply anterior, mudar o Secret não recria o role: é preciso apagar o PVC.
     - metadata:
-        name: pgdata # casa com volumeMounts.name; não é o nome final do PVC
+        name: pgdata # casa com volumeMounts.name
         labels:
           app: lab-pg # label do PVC, útil em oc get pvc -l app=lab-pg
           role: primary # distingue o disco do primary do disco da réplica
