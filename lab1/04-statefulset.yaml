@@ -46,7 +46,10 @@ metadata: # metadados do objeto
     app: lab-pg # label do OBJETO StatefulSet em si;
     app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor, na hora de visualizar os objetos e apagar tudo de uma vez.
 spec: # Especificação do objeto, com os campos que definem o comportamento do StatefulSet.
-  serviceName: lab-pg-svc-headless-primary # nome do headless service em 03-service.yaml; define o DNS do Pod
+  # serviceName: headless em 03-service.yaml; DNS deste Pod:
+  #   lab-pg-ss-primary-0.lab-pg-svc-headless-primary
+  serviceName: lab-pg-svc-headless-primary
+
   replicas: 1 # Apenas 1 instancia pois é o primary. Mudar para 2 criaria 2 bancos independentes
   selector: # Seleciona os Pods que serão gerenciados pelo StatefulSet.
     matchLabels: # Apenas pods com os labels especificados abaixo serão selecionados.
@@ -139,7 +142,10 @@ metadata: # metadados do objeto
     app: lab-pg # identifica o lab
     app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor (agrupar / apagar o conjunto)
 spec: # campos que definem o comportamento do StatefulSet
-  serviceName: lab-pg-svc-headless-replica # headless em 03-service.yaml; DNS: lab-pg-ss-replica-0.lab-pg-svc-headless-replica
+  # serviceName: headless em 03-service.yaml; DNS: lab-pg-ss-replica-0.lab-pg-svc-headless-replica
+  # Teste no lab (a partir do primary):
+  #   oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-ss-replica-0.lab-pg-svc-headless-replica/5432' && echo 'Conexao OK na porta 5432'"
+  serviceName: lab-pg-svc-headless-replica
   replicas: 1 # uma réplica neste lab; subir este número cria ...-replica-1 com PVC e streaming próprios
   selector: # seleciona os Pods gerenciados por este StatefulSet
     matchLabels: # tem de ser cópia exata dos labels do template abaixo
