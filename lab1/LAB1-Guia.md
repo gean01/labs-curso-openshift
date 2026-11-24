@@ -334,8 +334,9 @@ Nota: apagar o Pod **não** apaga o PVC (apagar este, sim, destruiria os dados).
 
 <mark>**Q6:** Veja a saída do comando `oc exec -it lab-pg-ss-primary-0 -- psql -U app_user -d app_db -c "SELECT * FROM teste;"`. Os dados foram preservados?</mark>
 
-## Parte 6 — Limpeza
+## Parte 6 — Limpeza de tudo que foi criado (OPCIONAL)
 
+Atenção. Execute os comandos a seguir apenas se precisar recomeçar o LAB
 Apague Pods, Deployments, ReplicaSets, StatefulSets, Services, Routes:
 
 ```bash
