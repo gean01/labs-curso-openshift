@@ -134,13 +134,13 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
 apiVersion: apps/v1 # StatefulSet pertence ao grupo apps, não ao core v1
 kind: StatefulSet # Define o tipo de objeto que será criado
 metadata: # metadados do objeto
-  name: lab-pg-ss-replica # vira o prefixo dos Pods: lab-pg-ss-replica-0, lab-pg-ss-replica-1, etc.
+  name: lab-pg-ss-replica # vira o prefixo dos Pods: lab-pg-ss-replica-0 (e -1 se replicas subir)
   labels: # labels do OBJETO StatefulSet em si (o Service não seleciona por aqui)
     app: lab-pg # identifica o lab
     app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor (agrupar / apagar o conjunto)
 spec: # campos que definem o comportamento do StatefulSet
   serviceName: lab-pg-svc-headless-replica # headless em 03-service.yaml; DNS: lab-pg-ss-replica-0.lab-pg-svc-headless-replica
-  replicas: 2 # N standbys; cada ordinal (...-0, ...-1) tem PVC próprio e streaming próprio do primary
+  replicas: 1 # uma réplica neste lab; subir este número cria ...-replica-1 com PVC e streaming próprios
   selector: # seleciona os Pods gerenciados por este StatefulSet
     matchLabels: # tem de ser cópia exata dos labels do template abaixo
       app: lab-pg # chave/valor arbitrários, desde que iguais no template e no Service
@@ -197,7 +197,7 @@ spec: # campos que definem o comportamento do StatefulSet
             - name: pgdata # referencia o volumeClaimTemplate de baixo; disco próprio, não o do primary
               mountPath: /var/lib/pgsql/data # PGDATA da réplica; cópia física, separada do primary
   volumeClaimTemplates:
-    # PVC resultante: pgdata-lab-pg-ss-replica-0 (e ...-1 se replicas > 1)
+    # PVC resultante: pgdata-lab-pg-ss-replica-0
     # Independente de pgdata-lab-pg-ss-primary-0. Apagar um não apaga o outro.
     - metadata:
         name: pgdata # mesmo nome lógico do primary; o nome do StatefulSet é que diferencia o PVC
