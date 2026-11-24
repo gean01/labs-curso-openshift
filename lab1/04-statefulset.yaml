@@ -72,9 +72,9 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
               name: postgres # mesmo nome da porta nos quatro Services (campo ports.name)
           envFrom:
             - secretRef:
-                name: lab-pg-secret # 01-secret.yaml: usuário, senha, banco e credencial de replicação
+                name: lab-pg-secret # Veja 01-secret.yaml: usuário, senha, banco e credencial de replicação
             - configMapRef:
-                name: lab-pg-configmap # 02-configmap.yaml: max_connections, shared_buffers, effective_cache_size
+                name: lab-pg-configmap # Veja 02-configmap.yaml: max_connections, shared_buffers, effective_cache_size
           resources:
             requests:
               cpu: 250m # 250 milicores reservados no scheduling; o nó precisa ter isso livre
