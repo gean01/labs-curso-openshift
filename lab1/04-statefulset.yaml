@@ -47,7 +47,7 @@ metadata:
     app.kubernetes.io/part-of: pg-lab # mapa da Visão do Desenvolvedor; fora do selector
 spec:
   serviceName: lab-pg-svc-headless-primary # nome do headless em 03-service.yaml; define o DNS do Pod
-  replicas: 1 # Apenas 1 instancia pois é o primary. Mudar para 2 criaria 2 bancos independentes.
+  replicas: 1 # Apenas 1 instancia pois é o primary. Mudar para 2 criaria 2 bancos independentes
   selector:
     matchLabels:
       app: lab-pg # tem de ser cópia exata dos labels do template abaixo
