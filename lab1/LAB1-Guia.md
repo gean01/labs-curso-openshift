@@ -230,7 +230,7 @@ Veja o status dos StatefulSets. Aguarde até que a coluna READY tenha `1/1` nos 
 oc get statefulset -l app=lab-pg -w
 ```
 
-Repare que esta aplicação (PostgreSQL) não é HTTP, mas usa readiness probe, embora um pouco diferente da forma como vimos em aula. A probe usa o comando `/usr/libexec/check-container`, que vem de brinde por usarmos uma imagem oficial da Red Hat: `registry.redhat.io/rhel9/postgresql-13:latest`.
+Repare que esta aplicação (PostgreSQL) não é HTTP, mas usa readiness probe, embora um pouco diferente da forma como vimos em aula (mais detalhes à frente). A probe usa o comando `/usr/libexec/check-container`, que vem de brinde por usarmos uma imagem oficial da Red Hat: `registry.redhat.io/rhel9/postgresql-13:latest`.
 
 Veja em `lab1/04-statefulset.yaml` a imagem utilizada:
 
