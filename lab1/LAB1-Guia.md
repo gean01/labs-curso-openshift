@@ -272,8 +272,7 @@ oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-
 Teste inserção no banco primário (remova a "\" no Windows): 
 
 ```bash
-oc exec -it lab-pg-ss-primary-0 -- psql -U app_user -d app_db -c \
-  "CREATE TABLE IF NOT EXISTS teste (id INT, nome VARCHAR(50)); INSERT INTO teste VALUES (2, 'Hello, world');"
+oc exec -it lab-pg-ss-primary-0 -- psql -U app_user -d app_db -c "CREATE TABLE IF NOT EXISTS teste (id INT, nome VARCHAR(50)); INSERT INTO teste VALUES (2, 'Hello, world');"
 ```
 
 Obs: `INSERT 0 1` é a confirmação do PostgreSQL de que 1 linha foi inserida.
