@@ -1,21 +1,27 @@
-# Route pública da aplicação Node.js. Aplique depois de oc new-app / oc expose
-# (oc expose svc/lab-app cria um objeto equivalente). Este manifesto deixa a
-# exposição declarativa e agrupa a app no mapa da Visão do Desenvolvedor.
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: lab-app
-  labels:
-    app: lab-app
-    app.kubernetes.io/part-of: pg-lab
-spec:
-  to:
-    kind: Service
-    name: lab-app
-    weight: 100
-  port:
-    targetPort: 8080-tcp
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
-  wildcardPolicy: None
+# Route: expõe o Service da app Node.js (lab-app) para fora do cluster via
+# router (HAProxy) do OpenShift. Aplique depois do S2I / oc new-app criar o
+# Service lab-app (ou use oc expose svc/lab-app, que gera um objeto equivalente).
+#
+# A Route NÃO tem selector de Pod. Ela cita o Service pelo nome (spec.to.name).
+# Quem escolhe os Pods é o selector desse Service.
+# Sem spec.host de propósito: no Sandbox o router preenche
+#   <nome-da-route>-<projeto>.apps.<cluster>
+# Comentários com # são ignorados pelo oc apply.
+apiVersion: route.openshift.io/v1 # API do OpenShift (não é core v1 do Kubernetes)
+kind: Route # Define o tipo de objeto que será criado
+metadata: # metadados do objeto
+  name: lab-app # nome da Route; entra no host gerado pelo router se spec.host estiver omitido
+  labels: # labels do OBJETO Route em si
+    app: lab-app # identifica a aplicação Node.js do lab
+    app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor (agrupa com o Postgres do lab)
+spec: # campos que definem o comportamento da Route
+  to: # destino interno do tráfego
+    kind: Service # a Route aponta para um Service, nunca direto para um Pod
+    name: lab-app # metadata.name do Service criado pelo S2I / oc new-app
+    weight: 100 # peso deste destino (100 = todo o tráfego; útil se houver vários 'to')
+  port: # qual porta do Service usar
+    targetPort: 8080-tcp # nome da porta no Service (S2I Node.js costuma publicar como 8080-tcp)
+  tls: # criptografia na borda do router
+    termination: edge # o router termina HTTPS; até o Pod o tráfego segue HTTP na porta do Service
+    insecureEdgeTerminationPolicy: Redirect # pedido HTTP é redirecionado para HTTPS
+  wildcardPolicy: None # sem wildcard no host; Route de um único hostname

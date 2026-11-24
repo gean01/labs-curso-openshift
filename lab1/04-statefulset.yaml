@@ -41,7 +41,7 @@
 apiVersion: apps/v1 # StatefulSet pertence ao grupo apps, não ao core v1
 kind: StatefulSet # Define o tipo de objeto que será criado
 metadata: # metadados do objeto
-  name: lab-pg-ss-primary # vira o prefixo dso Pods: lab-pg-ss-primary-0, lab-pg-ss-primary-1, etc.
+  name: lab-pg-ss-primary # vira o prefixo dos Pods: lab-pg-ss-primary-0, lab-pg-ss-primary-1, etc.
   labels: # labels são pares chave-valor que podem ser usados para selecionar o objeto
     app: lab-pg # label do OBJETO StatefulSet em si;
     app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor, na hora de visualizar os objetos e apagar tudo de uma vez.
