@@ -1,9 +1,12 @@
-# LAB 1: Explorando a Infraestrutura de um Cluster OpenShift — Provisionamento e Resiliência de Serviços com o Banco de Dados PostgreSQL (Sandbox)
-
-**PUCPR – Escola Politécnica**  
+# PUCPR – Escola Politécnica
 Curso: Infraestrutura Cloud na Prática: Virtualização, SDN e Kubernetes  
 Módulo 5.2: OpenShift  
 Prof. Gean Ribeiro dos Santos
+
+
+**LAB 1: Explorando a Infraestrutura de um Cluster OpenShift — Provisionamento e Resiliência de Serviços com o Banco de Dados PostgreSQL (Sandbox)**
+
+
 
 Neste laboratório provisionaremos um sistema gerenciador de banco de dados PostgreSQL com separação entre primário e réplica. Usaremos parte do conhecimento que aprendemos até agora no nosso curso de OpenShift: StatefulSet, Service (ClusterIP e Headless), Secret, ConfigMap e PVC. Validaremos resiliência (self-healing + persistência).
 
