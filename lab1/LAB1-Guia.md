@@ -113,7 +113,7 @@ oc apply -f 02-configmap.yaml
 Compare a saída do comando a seguir com o conteúdo de `01-secret.yaml` (na parte de chaves e valores):
 
 ```bash
-oc get secret lab-pg-secret -o yaml | head -40
+oc get secret lab-pg-secret -o yaml
 oc get configmap lab-pg-configmap -o yaml
 ```
 
@@ -244,7 +244,7 @@ spec:
 Veja detalhes sobre a readiness probe definida:
 
 ```bash
-oc describe pod lab-pg-ss-primary-0 | sed -n '/Readiness/,/Volumes/p'
+oc describe pod lab-pg-ss-primary-0
 ```
 
 Execute o comando a seguir e repare os nomes previsíveis dos pods:
