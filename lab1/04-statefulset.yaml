@@ -131,46 +131,46 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
 # POSTGRESQL_MASTER_PASSWORD (estas duas vêm do Secret via envFrom),
 # para abrir a replicação streaming contra o primary.
 # ---------------------------------------------------------------------------
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: lab-pg-ss-replica # prefixo do Pod: lab-pg-ss-replica-0
-  labels:
-    app: lab-pg # label do objeto; o selector dos Services olha o template, não isto
-    app.kubernetes.io/part-of: pg-lab # mapa da Visão do Desenvolvedor
-spec:
+apiVersion: apps/v1 # StatefulSet pertence ao grupo apps, não ao core v1
+kind: StatefulSet # Define o tipo de objeto que será criado
+metadata: # metadados do objeto
+  name: lab-pg-ss-replica # vira o prefixo dos Pods: lab-pg-ss-replica-0, lab-pg-ss-replica-1, etc.
+  labels: # labels do OBJETO StatefulSet em si (o Service não seleciona por aqui)
+    app: lab-pg # identifica o lab
+    app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor (agrupar / apagar o conjunto)
+spec: # campos que definem o comportamento do StatefulSet
   serviceName: lab-pg-svc-headless-replica # headless em 03-service.yaml; DNS: lab-pg-ss-replica-0.lab-pg-svc-headless-replica
-  replicas: 2 # N standbys; cada ordinal (...-replica-0, ...-1) tem PVC próprio e streaming próprio do primary
-  selector:
-    matchLabels:
-      app: lab-pg # cópia obrigatória dos labels do template
+  replicas: 2 # N standbys; cada ordinal (...-0, ...-1) tem PVC próprio e streaming próprio do primary
+  selector: # seleciona os Pods gerenciados por este StatefulSet
+    matchLabels: # tem de ser cópia exata dos labels do template abaixo
+      app: lab-pg # chave/valor arbitrários, desde que iguais no template e no Service
       role: replica # impede este StatefulSet de adotar o Pod do primary
   template:
-    metadata:
-      labels:
+    metadata: # metadados do template usado para criar os Pods
+      labels: # labels aplicados aos Pods (é isto que o Service procura)
         app: lab-pg # selector de lab-pg-svc-replica e do headless da réplica
-        role: replica # é este valor que deixa o Pod de fora dos Services do primary
-    spec:
-      containers:
-        - name: postgresql
+        role: replica # deixa o Pod de fora dos Services do primary
+    spec: # comportamento dos Pods
+      containers: # lista de containers do Pod
+        - name: postgresql # nome do container dentro do Pod
           image: registry.redhat.io/rhel9/postgresql-13:latest # a mesma imagem do primary
           args:
             - run-postgresql-slave # script da imagem que configura este Pod como standby
-          env:
+          env: # variáveis só desta réplica (não vão no ConfigMap compartilhado)
             - name: POSTGRESQL_MASTER_IP # lida pelo script da réplica; não existe no primary
               value: lab-pg-svc-primary # nome do ClusterIP em 03-service.yaml, não o headless e não o IP do Pod
           ports:
             - containerPort: 5432 # mesma porta do primary; os Services da réplica usam targetPort 5432
               name: postgres # alinha com ports.name dos Services
-          envFrom:
+          envFrom: # injeta todas as chaves do Secret e do ConfigMap como variáveis de ambiente
             - secretRef:
-                name: lab-pg-secret # mesma credencial do primary, inclusive o par MASTER_USER / MASTER_PASSWORD
+                name: lab-pg-secret # mesma credencial do primary, inclusive MASTER_USER / MASTER_PASSWORD
             - configMapRef:
                 name: lab-pg-configmap # mesmo tuning do primary
           resources:
             requests:
               cpu: 250m # reserva usada pelo scheduler
-              memory: 512Mi
+              memory: 512Mi # memória garantida
             limits:
               cpu: 500m # teto de CPU (throttle)
               memory: 1Gi # teto de memória (OOMKilled se passar)
@@ -179,8 +179,8 @@ spec:
             # Durante o base backup inicial a réplica ainda não está pronta para leitura.
             exec:
               command:
-                - /usr/libexec/check-container
-            initialDelaySeconds: 15
+                - /usr/libexec/check-container # health check que já vem na imagem Red Hat
+            initialDelaySeconds: 15 # espera após o start antes da primeira tentativa
             timeoutSeconds: 5
             periodSeconds: 10
           livenessProbe:
@@ -189,7 +189,7 @@ spec:
             # o backup inicial enquanto esse volume existir e for compatível.
             exec:
               command:
-                - /usr/libexec/check-container
+                - /usr/libexec/check-container # mesmo binário da readiness
             initialDelaySeconds: 120 # folga para o standby terminar de conectar no primary
             timeoutSeconds: 5
             periodSeconds: 15
@@ -197,12 +197,12 @@ spec:
             - name: pgdata # referencia o volumeClaimTemplate de baixo; disco próprio, não o do primary
               mountPath: /var/lib/pgsql/data # PGDATA da réplica; cópia física, separada do primary
   volumeClaimTemplates:
-    # PVC resultante: pgdata-lab-pg-ss-replica-0
+    # PVC resultante: pgdata-lab-pg-ss-replica-0 (e ...-1 se replicas > 1)
     # Independente de pgdata-lab-pg-ss-primary-0. Apagar um não apaga o outro.
     - metadata:
         name: pgdata # mesmo nome lógico do primary; o nome do StatefulSet é que diferencia o PVC
         labels:
-          app: lab-pg
+          app: lab-pg # útil em oc get pvc -l app=lab-pg
           role: replica # oc get pvc -l role=replica lista só o disco da réplica
       spec:
         accessModes:
