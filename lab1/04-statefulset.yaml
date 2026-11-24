@@ -61,6 +61,17 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
       containers: # Lista de containers que serão executados nos Pods.
         - name: postgresql # nome do container dentro do Pod.
           image: registry.redhat.io/rhel9/postgresql-13:latest # imagem da Red Hat; os scripts run-postgresql-* vêm dela
+          args:
+            - run-postgresql-master # entrypoint da imagem que inicializa este Pod como primary
+          ports:
+            - containerPort: 5432 # porta em que o postgres escuta; é o targetPort dos Services
+              name: postgres # mesmo nome da porta nos quatro Services (campo ports.name)
+          envFrom:
+            - secretRef:
+                name: lab-pg-secret # 01-secret.yaml: usuário, senha, banco e credencial de replicação
+            - configMapRef:
+                name: lab-pg-configmap # 02-configmap.yaml: max_connections, shared_buffers, effective_cache_size
+          resources:
             requests:
               cpu: 250m # 250 milicores reservados no scheduling; o nó precisa ter isso livre
               memory: 512Mi # memória garantida; o scheduler usa este valor para escolher o nó
@@ -129,7 +140,7 @@ metadata:
     app.kubernetes.io/part-of: pg-lab # mapa da Visão do Desenvolvedor
 spec:
   serviceName: lab-pg-svc-headless-replica # headless em 03-service.yaml; DNS: lab-pg-ss-replica-0.lab-pg-svc-headless-replica
-  replicas: 2 # uma réplica neste lab; subir este número cria ...-replica-1, ...-replica-2, cada um com PVC próprio
+  replicas: 2 # N standbys; cada ordinal (...-replica-0, ...-1) tem PVC próprio e streaming próprio do primary
   selector:
     matchLabels:
       app: lab-pg # cópia obrigatória dos labels do template

@@ -1,22 +1,28 @@
-# Headless Service do StatefulSet lab2-ss (namespace ns-para-statefulset).
-# clusterIP: None — o DNS devolve o IP do Pod, não um ClusterIP.
-# Com serviceName do StatefulSet igual a este nome, cada Pod ganha:
-#   lab2-ss-0.lab2-ss-svc.ns-para-statefulset.svc.cluster.local
+# Headless Service do StatefulSet lab2-ss.
+# clusterIP: None — o DNS devolve o IP do Pod, não um ClusterIP balanceado.
+#
+# Papel deste objeto:
+#   - É o valor de spec.serviceName do StatefulSet (08-statefulset.yaml).
+#   - Publica o DNS estável: lab2-ss-0.lab2-ss-svc.<namespace>.svc.cluster.local
+#
+# O selector (app=lab2-ss) tem de casar com template.metadata.labels do StatefulSet.
+# Sem esse match, o Service existe mas fica sem endpoints.
 #
 # Aplique com -n ns-para-statefulset (ou o projeto do fallback Sandbox — ver guia).
-apiVersion: v1
-kind: Service
-metadata:
-  name: lab2-ss-svc
-  labels:
+# Comentários com # são ignorados pelo oc apply.
+apiVersion: v1 # Service vive no grupo core v1
+kind: Service # tipo de objeto
+metadata: # metadados do objeto
+  name: lab2-ss-svc # tem de ser idêntico a spec.serviceName do StatefulSet
+  labels: # labels do objeto Service (não são o selector de Pods)
     app: lab2-ss
-    app.kubernetes.io/part-of: node-lab
-spec:
-  clusterIP: None
-  selector:
+    app.kubernetes.io/part-of: node-lab # mapa da Visão do Desenvolvedor
+spec: # comportamento do Service
+  clusterIP: None # isto torna o Service headless; sem VIP para balancear
+  selector: # procura Pods com estes labels (vêm do template do StatefulSet)
     app: lab2-ss
   ports:
-    - name: http
-      port: 8080
-      targetPort: http
+    - name: http # nome da porta; alinha com containerPort.name do Pod
+      port: 8080 # porta anunciada no DNS / pelos clientes
+      targetPort: http # encaminha para a porta nomeada do container
       protocol: TCP
