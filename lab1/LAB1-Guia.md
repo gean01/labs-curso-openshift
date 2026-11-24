@@ -266,10 +266,10 @@ oc get pvc
 Teste a conectividade. O DNS estável de um Pod de StatefulSet segue o padrão `<pod>.<headless-service>` (neste exemplo fica `lab-pg-ss-replica-0.lab-pg-svc-headless-replica`).
 
 ```bash
-oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-ss-replica-0.lab-pg-svc-headless-replica/5432' && echo 'Conexao OK na porta 5432'"
+oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-ss-replica-0.lab-pg-svc-headless-replica/5432'"
 ```
 
-Teste inserção no banco primário:
+Teste inserção no banco primário (remova a "\" no Windows): 
 
 ```bash
 oc exec -it lab-pg-ss-primary-0 -- psql -U app_user -d app_db -c \
