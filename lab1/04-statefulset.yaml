@@ -48,6 +48,7 @@ metadata: # metadados do objeto
 spec: # Especificação do objeto, com os campos que definem o comportamento do StatefulSet.
   # serviceName: headless em 03-service.yaml; DNS deste Pod:
   #   lab-pg-ss-primary-0.lab-pg-svc-headless-primary
+  # Mais detalhes (incluindo o comando de teste /dev/tcp) no serviceName do StatefulSet de réplica, abaixo.
   serviceName: lab-pg-svc-headless-primary
 
   replicas: 1 # Apenas 1 instancia pois é o primary. Mudar para 2 criaria 2 bancos independentes
