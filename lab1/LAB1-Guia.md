@@ -52,11 +52,6 @@ oc project
 
 Saída esperada: `Using project "<LOGIN>-dev" on server "https://api.<dominio>.openshiftapps.com:6443".`
 
-Ver usuário logado:
-
-```bash
-oc whoami
-```
 
 ## Parte 1 — Exploração do ambiente
 
