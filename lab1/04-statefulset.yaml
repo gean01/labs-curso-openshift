@@ -33,7 +33,7 @@
 #
 # Ordem prática de apply: Secret e ConfigMap, depois os Services, depois
 # este arquivo. O headless precisa existir para o serviceName resolver.
-# Comentários com # são ignorados pelo oc apply.
+
 
 # ---------------------------------------------------------------------------
 # Primary. Um Pod (replicas: 1), disco próprio, script de master.

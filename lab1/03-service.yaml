@@ -37,12 +37,12 @@ metadata: # metadados do objeto
 spec: # campos que definem o comportamento do Service
   type: ClusterIP # Como o nome sugere, este tipo ganha IP virtual dentro do cluster; É o valor padrão quando se for omitido
   ports: # portas publicadas por este Service
-    - name: postgresdefinidonoservice # Nome útil para reutilizar na Route
+    - name: pgnoservice # Nome útil para reutilizar na Route
       port: 5432 # porta em que o Service escuta (clientes conectam aqui)
-      targetPort: pgnostatefulset # porta do container para onde o tráfego é enviado; casa com containerPort
+      targetPort: pgnostatefulset # porta do container para onde o tráfego é enviado; Valor numérico definido no statefulset
   selector: # procura Pods com estes labels (vêm de template.metadata.labels do StatefulSet)
-    app: lab-pg # tem de existir em template.metadata.labels do StatefulSet primary
-    role: primary # separa este Service do de réplica; sem este par, o tráfego iria para os dois
+    app: lab-pg # este label tem que existir em template.metadata.labels do StatefulSet primary
+    role: primary # separa este Service do de réplica; sem este label, o tráfego iria para os dois
 
 ---
 # ---------------------------------------------------------------------------
