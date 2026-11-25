@@ -69,7 +69,7 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
             - run-postgresql-master # entrypoint da imagem que inicializa este Pod como primary
           ports:
             - containerPort: 5432 # porta em que o postgres escuta; é o targetPort dos Services
-              name: pgnostatefulset # Apelido para a porta, para que o stefulset use targerPort como "postgres"
+              name: pgnostatefulset # Apelido para a porta, para que o service use targerPort como "pgnostatefulset" sem precisar definir o número (que ficaria definido em 2 lugares)
           envFrom:
             - secretRef:
                 name: lab-pg-secret # Veja 01-secret.yaml: usuário, senha, banco e credencial de replicação
@@ -77,28 +77,28 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
                 name: lab-pg-configmap # Veja 02-configmap.yaml: max_connections, shared_buffers, effective_cache_size
           resources:
             requests:
-              cpu: 250m # 250 milicores reservados no scheduling; o nó precisa ter isso livre
-              memory: 512Mi # memória garantida; o scheduler usa este valor para escolher o nó
+              cpu: 250m # 250 milicores (1/4 de CPU) reservados; o nó precisa ter isso livre
+              memory: 512Mi # memória garantida; o OCP usa este valor para escolher o nó onde o pod vai rodar
             limits:
-              cpu: 500m # teto de CPU; acima disso o container é throttled, não morto
-              memory: 1Gi # teto de memória; estourar o limit mata o container (OOMKilled)
+              cpu: 500m # teto de CPU; acima disso o container é limitado, não morto
+              memory: 1Gi # teto de memória; estourar o limit mata o container (e portanto o pod)
           readinessProbe:
             # Enquanto este check falha, o Pod fica de fora dos endpoints do Service.
             # O ClusterIP lab-pg-svc-primary só encaminha tráfego quando o Pod está Ready.
             exec:
               command:
-                - /usr/libexec/check-container # health check que já vem na imagem Red Hat
+                - /usr/libexec/check-container # health check que já vem na imagem Red Hat. Se o executável sair com código 0 -> OK
             initialDelaySeconds: 15 # espera 15s após o start antes da primeira tentativa
             timeoutSeconds: 5 # cada execução do comando pode levar no máximo 5s
             periodSeconds: 10 # repete o check a cada 10s
           livenessProbe:
-            # Se este check falha, o kubelet mata o container e sobe outro.
+            # Se este check falha, o OCP mata o container e sobe outro.
             # O PVC permanece: o processo novo reabre o mesmo PGDATA.
             # O delay é bem maior que o da readiness de propósito: um postgres
             # ainda iniciando não deve ser tratado como processo morto.
             exec:
               command:
-                - /usr/libexec/check-container # mesmo binário da readiness; o critério de tempo é que muda
+                - /usr/libexec/check-container # Se o executável sair com código 0 -> OK
             initialDelaySeconds: 120 # 2 minutos de folga para a primeira inicialização do banco
             timeoutSeconds: 5
             periodSeconds: 15 # intervalo maior que o da readiness; liveness é o último recurso
@@ -168,7 +168,7 @@ spec: # campos que definem o comportamento do StatefulSet
               value: lab-pg-svc-primary # nome do ClusterIP em 03-service.yaml, não o headless e não o IP do Pod
           ports:
             - containerPort: 5432 # mesma porta do primary; os Services da réplica usam targetPort 5432
-              name: pgnostatefulset # alinha com ports.name dos Services
+              name: pgnostatefulset # Apelido para a porta, para que o service use targerPort como "pgnostatefulset" sem precisar definir o número (que ficaria definido em 2 lugares)
           envFrom: # injeta todas as chaves do Secret e do ConfigMap como variáveis de ambiente
             - secretRef:
                 name: lab-pg-secret # mesma credencial do primary, inclusive MASTER_USER / MASTER_PASSWORD
@@ -186,7 +186,7 @@ spec: # campos que definem o comportamento do StatefulSet
             # Durante o base backup inicial a réplica ainda não está pronta para leitura.
             exec:
               command:
-                - /usr/libexec/check-container # health check que já vem na imagem Red Hat
+                - /usr/libexec/check-container # health check que já vem na imagem Red Hat. Se o executável sair com código 0 -> OK
             initialDelaySeconds: 15 # espera após o start antes da primeira tentativa
             timeoutSeconds: 5
             periodSeconds: 10
@@ -196,7 +196,7 @@ spec: # campos que definem o comportamento do StatefulSet
             # o backup inicial enquanto esse volume existir e for compatível.
             exec:
               command:
-                - /usr/libexec/check-container # mesmo binário da readiness
+                - /usr/libexec/check-container # Se o executável sair com código 0 -> OK
             initialDelaySeconds: 120 # folga para o standby terminar de conectar no primary
             timeoutSeconds: 5
             periodSeconds: 15

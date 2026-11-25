@@ -14,7 +14,6 @@
 # Pré-requisitos no namespace alvo (-n):
 #   - ImageStream/build lab2-ss (S2I) e oc set image-lookup lab2-ss
 #   - Service headless 07-service-headless.yaml já aplicado
-# Comentários com # são ignorados pelo oc apply.
 apiVersion: apps/v1 # StatefulSet pertence ao grupo apps, não ao core v1
 kind: StatefulSet # Define o tipo de objeto que será criado
 metadata: # metadados do objeto
@@ -74,7 +73,7 @@ spec: # campos que definem o comportamento do StatefulSet
             timeoutSeconds: 2
             periodSeconds: 10
           livenessProbe:
-            # Se falhar, o kubelet reinicia o container; o nome ordinal permanece.
+            # Se falhar, o OCP reinicia o container; o nome ordinal permanece.
             httpGet:
               path: /health
               port: http
