@@ -68,23 +68,9 @@ Ver projects existentes:
 oc get projects
 ```
 
-Ver secrets existentes:
 
-```bash
-oc get secrets
-```
 
-Ver configmaps existentes:
 
-```bash
-oc get configmaps
-```
-
-```bash
-oc get nodes
-```
-
-<mark>**Q1:** Quando executamos `oc get pods`, de onde o cluster obtém essa informação (qual componente armazena o estado desejado/observado)?</mark>
 
 ## Parte 2 — Secret e ConfigMap
 
@@ -125,9 +111,9 @@ oc extract secret/lab-pg-secret --to=-
 
 Observe que `oc extract` mostra os valores decodificados. Em produção, o acesso a Secrets deve ser controlado.
 
-<mark>**Q2:** Qual o valor da chave `POSTGRESQL_MASTER_PASSWORD` codificada em base64 (embaralhada) no secret?</mark>
+<mark>**Q1:** Qual o valor da chave `POSTGRESQL_MASTER_PASSWORD` codificada em base64 (embaralhada) no secret?</mark>
 
-<mark>**Q3:** O campo `stringData` no manifesto do Secret evita que você precise escrever base64 manualmente. O que o cluster faz com esses valores ao persistir o objeto no etcd?</mark>
+<mark>**Q2:** O campo `stringData` no manifesto do Secret evita que você precise escrever base64 manualmente. O que o cluster faz com esses valores ao persistir o objeto no etcd?</mark>
 
 ## Parte 3 — Services ClusterIP e Headless
 
@@ -197,6 +183,8 @@ Confira que ainda não temos pods:
 ```bash
 oc get pods
 ```
+
+<mark>**Q3:** Quando executamos `oc get pods`, de onde o cluster obtém essa informação (qual componente armazena o estado desejado/observado)?</mark>
 
 <mark>**Q4:** Por que a réplica tem a variável de ambiente `POSTGRESQL_MASTER_IP` com valor o nome DNS `lab-pg-svc-primary` e não o IP do Pod no qual roda a instância primary do PostgreSQL?</mark>
 
@@ -315,7 +303,7 @@ Compare os IPs com os da saída do comando:
 oc get pods -o wide
 ```
 
-Simule falha do Pod primary e verifique se o dado sobrevive (PVC é remontado no novo Pod, que terá o mesmo nome):
+Simule falha do Pod primary (apagaremos ele) e verifique se o dado sobrevive (PVC é remontado no novo Pod, que terá o mesmo nome):
 
 ```bash
 oc delete pod lab-pg-ss-primary-0
