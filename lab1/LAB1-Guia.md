@@ -269,6 +269,10 @@ Teste a conectividade. O DNS estável de um Pod de StatefulSet segue o padrão `
 oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-ss-replica-0.lab-pg-svc-headless-replica/5432'"
 ```
 
+Se não saiu nenhum erro no comando, ele foi com sucesso. Experimente mudar o comando para usar porta 31 (vai dar erro)
+
+oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-ss-replica-0.lab-pg-svc-headless-replica/5431'"
+
 Teste inserção no banco primário (remova a "\" no Windows): 
 
 ```bash
@@ -299,7 +303,7 @@ A saída é `t` (true) ou `f` (false).
 
 Esperado: primary responde `f` (não está em recovery); réplica responde `t` (pois está em standby).
 
-No primary, confira que o status é `streaming`:
+No primary, confira que o status é `streaming` (está enviando cópia do banco para as réplicas):
 
 ```bash
 oc exec lab-pg-ss-primary-0 -- psql -c "SELECT client_addr, state FROM pg_stat_replication;"
@@ -335,7 +339,7 @@ Nota: apagar o Pod **não** apaga o PVC (apagar este, sim, destruiria os dados).
 
 ## Parte 6 — Limpeza de tudo que foi criado (OPCIONAL)
 
-Atenção. Execute os comandos a seguir apenas se precisar recomeçar o LAB.
+Atenção. Execute os comandos a seguir apenas se precisar recomeçar o LAB. VAI APAGAR TUDO QUE CRIAMOS ATÉ AQUI!
 
 Apague Pods, Deployments, ReplicaSets, StatefulSets, Services, Routes:
 
