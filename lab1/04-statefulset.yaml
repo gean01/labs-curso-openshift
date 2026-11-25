@@ -69,7 +69,7 @@ spec: # Especificação do objeto, com os campos que definem o comportamento do 
             - run-postgresql-master # entrypoint da imagem que inicializa este Pod como primary
           ports:
             - containerPort: 5432 # porta em que o postgres escuta; é o targetPort dos Services
-              name: postgres # mesmo nome da porta nos quatro Services (campo ports.name)
+              name: pgnostatefulset # Apelido para a porta, para que o stefulset use targerPort como "postgres"
           envFrom:
             - secretRef:
                 name: lab-pg-secret # Veja 01-secret.yaml: usuário, senha, banco e credencial de replicação
@@ -168,7 +168,7 @@ spec: # campos que definem o comportamento do StatefulSet
               value: lab-pg-svc-primary # nome do ClusterIP em 03-service.yaml, não o headless e não o IP do Pod
           ports:
             - containerPort: 5432 # mesma porta do primary; os Services da réplica usam targetPort 5432
-              name: postgres # alinha com ports.name dos Services
+              name: pgnostatefulset # alinha com ports.name dos Services
           envFrom: # injeta todas as chaves do Secret e do ConfigMap como variáveis de ambiente
             - secretRef:
                 name: lab-pg-secret # mesma credencial do primary, inclusive MASTER_USER / MASTER_PASSWORD
