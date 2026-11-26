@@ -1,9 +1,9 @@
 # Usaremos quatro Services para o mesmo PostgreSQL, com papéis diferentes.
 #
 # Dois são ClusterIP (têm um IP estável e fazem balanceamento de carga):
-#   lab-pg-svc-primary  -> envia carga para Pods com label role=primary
-#   lab-pg-svc-replica  -> envia carga para Pods com label role=replica
-# A réplica (arquivo 04-statefulset.yaml) usa  "lab-pg-svc-primary" como valor da variável
+#   lab-pg-svc-cip-primary  -> envia carga para Pods com label role=primary
+#   lab-pg-svc-cip-replica  -> envia carga para Pods com label role=replica
+# A réplica (arquivo 04-statefulset.yaml) usa  "lab-pg-svc-cip-primary" como valor da variável
 # POSTGRESQL_MASTER_IP. O DNS do OCP resolve esse nome para o ClusterIP do service,
 # e o Service encaminha requisiçõees para o Pod primary (repare selector:  app: lab-pg role: primary)
 #
@@ -30,7 +30,7 @@
 apiVersion: v1 # grupo core; Service é definido em v1, como Secret e ConfigMap
 kind: Service # Define o tipo de objeto que será criado
 metadata: # metadados do objeto
-  name: lab-pg-svc-primary # nome do serviço é usado como DNS dentro do namespace; é o valor de POSTGRESQL_MASTER_IP na réplica (é através desse nome que a réplica conversa com os pods do primary)
+  name: lab-pg-svc-cip-primary # nome do serviço é usado como DNS dentro do namespace; é o valor de POSTGRESQL_MASTER_IP na réplica (é através desse nome que a réplica conversa com os pods do primary)
   labels: # labels do OBJETO Service em si (não confunda com o selector de Pods)
     app: lab-pg # identifica o lab; o selector olha os labels do Pod, não este
     app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor (caixa cinza em topoly no console web)
@@ -50,12 +50,12 @@ spec: # campos que definem o comportamento do Service
 # role=replica. Com uma réplica há um único Pod atrás deste IP; se o
 # número de réplicas subir, o Service passa a balancear entre elas.
 # Este nome NÃO é usado pelo primary. Quem quiser leitura na réplica
-# conecta em lab-pg-svc-replica:5432.
+# conecta em lab-pg-svc-cip-replica:5432.
 # ---------------------------------------------------------------------------
 apiVersion: v1 # grupo core
 kind: Service # Define o tipo de objeto que será criado
 metadata: # metadados do objeto
-  name: lab-pg-svc-replica # DNS estável das réplicas; não aponta para o primary
+  name: lab-pg-svc-cip-replica # DNS estável das réplicas; não aponta para o primary
   labels: # labels do objeto Service
     app: lab-pg # identifica o lab
     app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor

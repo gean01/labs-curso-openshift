@@ -167,11 +167,11 @@ oc get svc -l app=lab-pg -o wide
 Veja detalhes dos Services:
 
 ```bash
-oc describe svc lab-pg-svc-primary
+oc describe svc lab-pg-svc-cip-primary
 oc describe svc lab-pg-svc-headless-replica
 ```
 
-Ainda não há Pods atrás dos Services (os StatefulSets vêm na próxima parte). Mesmo assim o objeto DNS já existe. A réplica usará o nome DNS conforme definido na variável `POSTGRESQL_MASTER_IP` (com valor `lab-pg-svc-primary`) para achar o master de forma estável (sem precisar do IP do pod, que é efêmero).
+Ainda não há Pods atrás dos Services (os StatefulSets vêm na próxima parte). Mesmo assim o objeto DNS já existe. A réplica usará o nome DNS conforme definido na variável `POSTGRESQL_MASTER_IP` (com valor `lab-pg-svc-cip-primary`) para achar o master de forma estável (sem precisar do IP do pod, que é efêmero).
 
 Confira que ainda não temos pods:
 
@@ -181,7 +181,7 @@ oc get pods
 
 <mark>**Q3:** Quando executamos `oc get pods`, de onde o cluster obtém essa informação (qual componente armazena o estado desejado/observado)?</mark>
 
-<mark>**Q4:** Por que a réplica tem a variável de ambiente `POSTGRESQL_MASTER_IP` com valor o nome DNS `lab-pg-svc-primary` e não o IP do Pod no qual roda a instância primary do PostgreSQL?</mark>
+<mark>**Q4:** Por que a réplica tem a variável de ambiente `POSTGRESQL_MASTER_IP` com valor o nome DNS `lab-pg-svc-cip-primary` e não o IP do Pod no qual roda a instância primary do PostgreSQL?</mark>
 
 ## Parte 4 — StatefulSets, probes e PVC
 
@@ -250,6 +250,11 @@ Teste a conectividade. O DNS estável de um Pod de StatefulSet segue o padrão `
 
 ```bash
 oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-ss-replica-0.lab-pg-svc-headless-replica/5432'"
+```
+
+Teste a conectividade do primary para a replica usando o DNS do nome do serviço ClusterIP.lab-pg-svc-headless-replica`). O DNS de serviço é <NOME_SERVICE>.<NAMESPACE>.svc.cluster.local
+```bash
+oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-svc-cip-replica.gean01-dev.svc.cluster.local/5432'"
 ```
 
 Se não saiu nenhum erro no comando, ele foi com sucesso. Experimente mudar o comando para usar porta 31 (vai dar erro)
