@@ -46,8 +46,8 @@ metadata: # metadados do objeto
     app: lab-pg # label do OBJETO StatefulSet em si;
     app.kubernetes.io/part-of: pg-lab # auxilia na Visão do Desenvolvedor, na hora de visualizar os objetos e apagar tudo de uma vez.
 spec: # Especificação do objeto, com os campos que definem o comportamento do StatefulSet.
-  # serviceName: headless em 03-service.yaml; DNS deste Pod:
-  #   lab-pg-ss-primary-0.lab-pg-svc-headless-primary
+  # serviceName: deve ser igual ao spec.serviceName do headless service em 03-service.yaml; Define o DNS dos Pod do Statefulset.
+  #  Para o pod zero, por exemplo, do statefulset "lab-pg-ss-primary" o DNS fica "lab-pg-ss-primary-0.lab-pg-svc-headless-primary" (<pod>.<headless-service>)
   # Mais detalhes (incluindo o comando de teste /dev/tcp) no serviceName do StatefulSet de réplica, abaixo.
   serviceName: lab-pg-svc-headless-primary
 
