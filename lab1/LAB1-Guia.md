@@ -246,7 +246,7 @@ oc get pvc
 
 ## Parte 5 — Dados, DNS e resiliência
 
-Teste a conectividade. O DNS estável de um Pod de StatefulSet segue o padrão `<pod>.<headless-service>` (neste exemplo fica `lab-pg-ss-replica-0.lab-pg-svc-headless-replica`).
+Teste a conectividade do pod primary se comunicando com um dos pods do replica direto pelo seu nome (lab-pg-ss-replica-0). O DNS estável de um Pod de StatefulSet com headless sevice segue o padrão `<nome-pod>.<nome-headless-service>` (neste exemplo fica `lab-pg-ss-replica-0.lab-pg-svc-headless-replica`).
 
 ```bash
 oc exec -it lab-pg-ss-primary-0 -- bash -c "timeout 2 bash -c '</dev/tcp/lab-pg-ss-replica-0.lab-pg-svc-headless-replica/5432'"
